@@ -1,0 +1,39 @@
+[tool.poetry]
+name = "marshmallow-litestar-plugin"
+version = "0.1.0"
+description = ""
+authors = ["Anton <mainsample@yandex.ru>"]
+license = "MIT"
+readme = "README.md"
+packages = [{include = "marshmallow_litestar_plugin"}]
+
+[tool.poetry.dependencies]
+python = "^3.8"
+
+
+
+[tool.poetry.group.dev.dependencies]
+ruff = "*"
+pre-commit = "*"
+mypy = "*"
+litestar = "*"
+marshmallow = "*"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+
+[tool.ruff.lint]
+ignore = [
+    "FIX002",
+]
+
+
+[tool.mypy]
+python_version = "3.8"
+
+follow_imports = "silent"
+disable_error_code = "import-untyped"
+ignore_missing_imports = true
