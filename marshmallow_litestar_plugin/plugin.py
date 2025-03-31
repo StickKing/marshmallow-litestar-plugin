@@ -4,7 +4,6 @@ from typing import TYPE_CHECKING
 from typing import Any
 
 from litestar.openapi.spec import Schema
-from litestar.plugins import InitPlugin
 from litestar.plugins import OpenAPISchemaPlugin
 from marshmallow.schema import SchemaMeta
 
@@ -13,12 +12,11 @@ from marshmallow_litestar_plugin.utils import get_schema_info
 
 if TYPE_CHECKING:
     from litestar._openapi.schema_generation.schema import SchemaCreator
-    from litestar.config.app import AppConfig
     from litestar.typing import FieldDefinition
 
 
 __all__ = (
-    "MarshmallowPlugin",
+    "MarshmallowSchemaPlugin",
 )
 
 
@@ -35,9 +33,7 @@ class MarshmallowSchemaPlugin(OpenAPISchemaPlugin):
         remove_excluded_fields: bool = True
     ) -> None:
         self.use_field_requared = use_field_requared
-        self.remove_excluded_fields = (
-            remove_excluded_fields
-        )
+        self.remove_excluded_fields = remove_excluded_fields
 
     @staticmethod
     def is_plugin_supported_type(value: Any) -> bool:
@@ -76,38 +72,7 @@ class MarshmallowSchemaPlugin(OpenAPISchemaPlugin):
             field_definition,
             required=sorted(schema_info["requared_fields"]),
             property_fields=schema_info["field_definitions"],
-            title="Test",
-            # examples=None if model_info.example is None else [model_info.example],
+            title="",
+            # examples=None if model_info.example is
+            # None else [model_info.example],
         )
-
-
-class MarshmallowPlugin(InitPlugin):
-    """A plugin that provides marshmallow integration."""
-
-    __slots__ = (
-        "field_requared_for_json_schema",
-        "remove_excluded_fields_json_schema",
-    )
-
-    def __init__(
-        self,
-        *,
-        field_requared_for_json_schema: bool = False,
-        remove_excluded_fields_json_schema: bool = True,
-    ) -> None:
-        self.field_requared_for_json_schema = field_requared_for_json_schema
-        self.remove_excluded_fields_json_schema = (
-            remove_excluded_fields_json_schema,
-        )
-
-    def on_app_init(self, app_config: AppConfig) -> AppConfig:
-        open_api_plugin = MarshmallowSchemaPlugin(
-            use_field_requared=self.field_requared_for_json_schema,
-            remove_excluded_fields=self.remove_excluded_fields_json_schema,
-        )
-        app_config.plugins.extend(
-            [
-                open_api_plugin,
-            ]
-        )
-        return app_config
