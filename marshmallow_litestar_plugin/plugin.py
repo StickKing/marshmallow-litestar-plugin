@@ -23,14 +23,21 @@ __all__ = (
 
 
 class MarshmallowSchemaPlugin(OpenAPISchemaPlugin):
-    __slots__ = ("field_requared_for_json_schema",)
+    __slots__ = (
+        "use_field_requared",
+        "remove_excluded_fields",
+    )
 
     def __init__(
         self,
         *,
-        field_requared_for_json_schema: bool = False,
+        use_field_requared: bool = False,
+        remove_excluded_fields: bool = True
     ) -> None:
-        self.field_requared_for_json_schema = field_requared_for_json_schema
+        self.use_field_requared = use_field_requared
+        self.remove_excluded_fields = (
+            remove_excluded_fields
+        )
 
     @staticmethod
     def is_plugin_supported_type(value: Any) -> bool:
@@ -63,7 +70,7 @@ class MarshmallowSchemaPlugin(OpenAPISchemaPlugin):
         """
         schema_info = get_schema_info(
             field_definition.annotation,
-            field_requared_for_json_schema=self.field_requared_for_json_schema,
+            use_field_requared=self.use_field_requared,
         )
         return schema_creator.create_component_schema(
             field_definition,
@@ -77,21 +84,30 @@ class MarshmallowSchemaPlugin(OpenAPISchemaPlugin):
 class MarshmallowPlugin(InitPlugin):
     """A plugin that provides marshmallow integration."""
 
-    __slots__ = ("field_requared_for_json_schema",)
+    __slots__ = (
+        "field_requared_for_json_schema",
+        "remove_excluded_fields_json_schema",
+    )
 
     def __init__(
         self,
         *,
         field_requared_for_json_schema: bool = False,
+        remove_excluded_fields_json_schema: bool = True,
     ) -> None:
         self.field_requared_for_json_schema = field_requared_for_json_schema
+        self.remove_excluded_fields_json_schema = (
+            remove_excluded_fields_json_schema,
+        )
 
     def on_app_init(self, app_config: AppConfig) -> AppConfig:
+        open_api_plugin = MarshmallowSchemaPlugin(
+            use_field_requared=self.field_requared_for_json_schema,
+            remove_excluded_fields=self.remove_excluded_fields_json_schema,
+        )
         app_config.plugins.extend(
             [
-                MarshmallowSchemaPlugin(
-                    field_requared_for_json_schema=self.field_requared_for_json_schema,
-                ),
+                open_api_plugin,
             ]
         )
         return app_config

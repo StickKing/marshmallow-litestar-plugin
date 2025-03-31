@@ -10,8 +10,10 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import List
+from typing import Dict
 from typing import Optional
 from typing import Tuple
+from typing import Type
 from typing import TypedDict
 from typing import Union
 
@@ -19,10 +21,11 @@ from litestar.types import Empty
 from litestar.typing import FieldDefinition
 from marshmallow import Schema
 from marshmallow import fields
+from marshmallow.base import SchemaABC
 
 
 if TYPE_CHECKING:
-    from marshmallow.base import SchemaABC
+    # from marshmallow.base import SchemaABC
 
     class SchemaInfo(TypedDict):
         """Schema fields info."""
@@ -30,7 +33,7 @@ if TYPE_CHECKING:
         schema_fields: dict[str, fields.Field]
         field_definitions: dict[str, FieldDefinition]
         requared_fields: list[str]
-        exclude_fields: set[str]
+        # excluded_fields: set[str]
 
 
 TYPE_MAPPING = {
@@ -61,7 +64,7 @@ TYPE_MAPPING = {
 }
 
 
-class FieldPreparator:
+class FieldMapper:
 
     __slots__ = ("field_preparetion",)
 
@@ -82,7 +85,7 @@ class FieldPreparator:
     #     logging.error(method.__annotations__)
     #     return None
 
-    def _get_tuple_field_type(self, field: fields.Tuple):
+    def _get_tuple_field_type(self, field: fields.Tuple) -> type[tuple]:
         """Processing ma_fields.Tuple.
 
         Args:
@@ -100,7 +103,7 @@ class FieldPreparator:
     def _get_mapping_field_type(
         self,
         field: fields.Dict | fields.Mapping,
-    ) -> type[dict[Any, Any]] | type[dict]:
+    ) -> Type[dict[Any, Any]] | Type[dict]:
         """Processing ma_fields.Mapping or ma_fields.Dict.
 
         Args:
@@ -112,10 +115,10 @@ class FieldPreparator:
         if field.key_field and field.value_field:
             key_type = self(field.key_field)
             value_type = self(field.value_field)
-            return dict[key_type, value_type]
+            return Dict[key_type, value_type]
         return dict
 
-    def _get_nested_field_type(self, field: fields.Nested) -> SchemaABC:
+    def _get_nested_field_type(self, field: fields.Nested) -> type[SchemaABC]:
         """Processing ma_fields.Nested.
 
         Args:
@@ -124,7 +127,6 @@ class FieldPreparator:
         Returns:
             marshmallow schema obj
         """
-        # TODO: check nested schema in list
         schema = field.nested
         if callable(schema):
             return schema
@@ -134,7 +136,7 @@ class FieldPreparator:
         self,
         field: fields.Field,
         field_python_type: type,
-    ) -> type | type[None]:
+    ) -> type | Type[None]:
         """Check optional field
 
         Args:
@@ -161,14 +163,14 @@ class FieldPreparator:
         if callable(field_inner):
             field_inner = field_inner()
         if field_inner.__class__ is fields.Nested:
-            field_python_type = type(self._get_nested_field_type(field_inner))
+            field_python_type = self._get_nested_field_type(field_inner)
         else:
             field_python_type = self(field_inner)
         return List[field_python_type]
 
     def _check_base_ma_field(
         self,
-        field_cls: type[fields.Field],
+        field_cls: Type[fields.Field],
     ) -> fields.Field:
         """
         Сheck whether the field is custom or a base field.
@@ -180,11 +182,8 @@ class FieldPreparator:
         for cls in field_cls.__bases__:
             if cls in TYPE_MAPPING.keys():
                 return cls
-
-        for cls in field_cls.__bases__:
-            field = self._check_base_ma_field(cls)
-            if isinstance(field, fields.Raw):
-                return field
+            if issubclass(cls, fields.Field):
+                return self._check_base_ma_field(cls)
 
         return fields.Raw
 
@@ -211,20 +210,45 @@ class FieldPreparator:
         return self._check_optional(field, field_python_type)
 
 
+def get_excluded_fields(schema: type[Schema]) -> set[str]:
+    """Summary excluded Meta fields name.
+
+    Args:
+        schema: marshmellow schemas cls
+
+    Returns:
+        set with excluded field names
+    """
+    if hasattr(schema.Meta, "exclude"):
+        excluded_fields = set(schema.Meta.exclude)
+        for cls in schema.__bases__:
+            if issubclass(cls, SchemaABC):
+                excluded_fields.update(get_excluded_fields(cls))
+        return excluded_fields
+    return set()
+
+
 def get_schema_info(
     schema: Schema,
     *,
-    field_requared_for_json_schema=False,
+    use_field_requared=False,
+    remove_excluded_fields=True,
 ) -> SchemaInfo:
     """Get marshmallow schema info about fields."""
+    excluded_fields = set()
+    if remove_excluded_fields:
+        excluded_fields = get_excluded_fields(schema)
+
     schema_fields = schema._declared_fields
     field_definitions = {}
-    exclude_fields = getattr(schema.Meta, "exclude", [])
     requared_fields = []
 
-    field_preparator = FieldPreparator()
+    field_preparator = FieldMapper()
 
     for name, field in schema_fields.items():
+        if name in excluded_fields:
+            continue
+
         if callable(field):
             field = field()
 
@@ -239,7 +263,7 @@ def get_schema_info(
             # and field.dump_default is not missing else Empty,
         )
 
-        if field_requared_for_json_schema:
+        if use_field_requared:
             if field.required:
                 requared_fields.append(name)
         else:
@@ -249,5 +273,5 @@ def get_schema_info(
         "schema_fields": schema_fields,
         "field_definitions": field_definitions,
         "requared_fields": requared_fields,
-        "exclude_fields": exclude_fields,
+        # "excluded_fields": excluded_fields,
     }
