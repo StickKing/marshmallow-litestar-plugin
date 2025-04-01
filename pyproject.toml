@@ -31,6 +31,10 @@ ignore = [
 ]
 
 
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+
 [tool.mypy]
 python_version = "3.8"
 

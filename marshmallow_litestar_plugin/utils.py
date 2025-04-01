@@ -7,10 +7,9 @@ from ipaddress import IPv4Interface
 from ipaddress import IPv6Address
 from ipaddress import IPv6Interface
 from pathlib import Path
-from typing import TYPE_CHECKING
 from typing import Any
-from typing import List
 from typing import Dict
+from typing import List
 from typing import Optional
 from typing import Tuple
 from typing import Type
@@ -24,16 +23,12 @@ from marshmallow import fields
 from marshmallow.base import SchemaABC
 
 
-if TYPE_CHECKING:
-    # from marshmallow.base import SchemaABC
+class SchemaInfo(TypedDict):
+    """Schema fields info."""
 
-    class SchemaInfo(TypedDict):
-        """Schema fields info."""
-
-        schema_fields: dict[str, fields.Field]
-        field_definitions: dict[str, FieldDefinition]
-        requared_fields: list[str]
-        # excluded_fields: set[str]
+    schema_fields: dict[str, fields.Field]
+    field_definitions: dict[str, FieldDefinition]
+    requared_fields: list[str]
 
 
 TYPE_MAPPING = {
@@ -78,12 +73,6 @@ class FieldMapper:
             fields.Tuple: self._get_tuple_field_type,
             # fields.Method: self._get_method_field_type,
         }
-
-    # def _get_method_field_type(self, field: fields.Method):
-    #     logging.error("method")
-    #     method = getattr(field, field.serialize_method_name)
-    #     logging.error(method.__annotations__)
-    #     return None
 
     def _get_tuple_field_type(self, field: fields.Tuple) -> type[tuple]:
         """Processing ma_fields.Tuple.
@@ -269,9 +258,8 @@ def get_schema_info(
         else:
             requared_fields.append(name)
 
-    return {
-        "schema_fields": schema_fields,
-        "field_definitions": field_definitions,
-        "requared_fields": requared_fields,
-        # "excluded_fields": excluded_fields,
-    }
+    return SchemaInfo(
+        schema_fields=schema_fields,
+        field_definitions=field_definitions,
+        requared_fields=requared_fields,
+    )
